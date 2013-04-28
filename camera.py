@@ -2,12 +2,11 @@
 import time
 import os
 import subprocess
-import time
 import RPi.GPIO as GPIO
 import logging
 
-class Motor:
 
+class Motor:
     def __init__(self):
         '''Define a motor instance. Help taken from:
 
@@ -20,21 +19,21 @@ class Motor:
         http://www.scraptopower.co.uk/Raspberry-Pi/how-to-connect-stepper-motors-a-raspberry-pi
         http://www.adafruit.com/blog/2013/01/23/adafruits-raspberry-pi-lesson-10-stepper-motors-raspberry_pi-raspberrypi/
         '''
-        log = logging.getLogger('camera.Motor')
-        log.info('Create the Motor Object')
-        log.debug('Use BCM GPIO references instead of physical pin nums')
+        self.log = logging.getLogger('time_lapse.Motor')
+        self.log.info('Create the Motor Object')
+        self.log.debug('Use BCM GPIO references instead of physical pin nums')
         GPIO.setmode(GPIO.BCM)
 
-        log.debug('Define GPIO signals to use pins 11, 12, 13, and 15. On'
+        self.log.debug('Define GPIO signals to use pins 11, 12, 13, and 15. On'
                 ' the Raspberry Pi these are GPIO17,GPIO18,GPIO27 and GPIO22.')
-        self.StepPins = [17,18,27,22]
+        self.StepPins = [17, 18, 27, 22]
 
-        log.debug('Set all the pins as outputs')
+        self.log.debug('Set all the pins as outputs')
         for pin in self.StepPins:
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, GPIO.LOW)
 
-        log.debug('Define a simple sequence.')
+        self.log.debug('Define a simple sequence.')
         # TODO: Understand this, and if necessary update it.
         self.StepCount = 4
         self.Seq = []
@@ -59,28 +58,29 @@ class Motor:
         :param wait_time: The amount of time to wait between steps. Too fast
             and it may not actually turn. Default 0.05.
         '''
-        log.info('Rotate %i degrees clockwise' % (number_of_degrees))
+        self.log.info('Rotate %i degrees clockwise' % (number_of_degrees))
         num_iterations = number_of_degrees * 6
         StepCounter = 0
 
-        for x in xrange(num_iterations):
+        for _ in xrange(num_iterations):
             for pin in range(0, 4):
                 xpin = self.StepPins[pin]
                 if self.Seq[StepCounter][pin] != 0:
-                    log.debug('Step %i Enable %i' % (StepCounter, xpin))
+                    self.log.debug('Step %i Enable %i' % (StepCounter, xpin))
                     GPIO.output(xpin, GPIO.HIGH)
                 else:
                     GPIO.output(xpin, GPIO.LOW)
             StepCounter += 1
 
-            log.debug("If we've reached the end of the sequence, start again!")
+            self.log.debug("If we've reached the end of the sequence,"
+                    "start again!")
             if (StepCounter == self.StepCount):
                 StepCounter = 0
             if (StepCounter < 0):
-                log.warning('How did StepCounter become lower than 0?')
+                self.log.warning('How did StepCounter become lower than 0?')
                 StepCounter = self.StepCount
 
-            log.debug('Wait before the next step in the sequence')
+            self.log.debug('Wait before the next step in the sequence')
             time.sleep(wait_time)
 
     def rotate_anticlockwise(self, number_of_degrees, wait_time=0.05):
@@ -98,64 +98,67 @@ class Motor:
         :param wait_time: The amount of time to wait between steps. Too fast
             and it may not actually turn. Default 0.05.
         '''
-        log.info('Rotate %i degress anticlockwise' % (number_of_degrees))
+        self.log.info('Rotate %i degress anticlockwise' % (number_of_degrees))
         num_iterations = number_of_degrees * 6
         StepCounter = 3
 
-        for x in xrange(num_iterations):
+        for _ in xrange(num_iterations):
             for pin in range(0, 4):
                 xpin = self.StepPins[pin]
                 if self.Seq[StepCounter][pin] != 0:
-                    log.debug('Step %i Enable %i' % (StepCounter, xpin))
+                    self.log.debug('Step %i Enable %i' % (StepCounter, xpin))
                     GPIO.output(xpin, GPIO.HIGH)
                 else:
                     GPIO.output(xpin, GPIO.LOW)
             StepCounter -= 1
 
-            log.debug("If we've reached the end of the sequence, start again!")
+            self.log.debug("If we've reached the end of the sequence, "
+                    "start again!")
 
             if (StepCounter == -1):
-                StepCounter = self.StepCount - 1 
+                StepCounter = self.StepCount - 1
             if (StepCounter < 0):
-                log.warning('How did StepCounter become lower than 0?')
+                self.log.warning('How did StepCounter become lower than 0?')
                 StepCounter = 0
             if (StepCounter > 3):
-                log.warning('How did StepCounter become higher than 4?')
+                self.log.warning('How did StepCounter become higher than 4?')
                 StepCounter = self.StepCount - 1
 
-            log.debug('Wait before the next step in the sequence')
+            self.log.debug('Wait before the next step in the sequence')
             time.sleep(wait_time)
 
+
 class Camera:
-
     def __init__(self):
-        log = logging.getLogger('time_lapse.camera')
-
+        self.log = logging.getLogger('time_lapse.Camera')
 
     def take_photo(self, iteration, output_dir):
-        log.debug('Take a picture. Iteration "%s"' % (iteration))
+        self.log.debug('Take a picture. Iteration "%s"' % (iteration))
         output_file = output_dir + "/" + str(iteration).zfill(4) + ".jpg"
-        subprocess.call(["fswebcam", "--save", output_file, "-r", "1280x720", "-q", "-d", "v4l2:/dev/video0", "-D", "2"])
-        #subprocess.call(["fswebcam", "--save", output_file, "-r", "1280x720", "-q", "-d", "v4l2:/dev/video0"])
-
+        subprocess.call(["fswebcam", "--save", output_file, "-r", "1280x720",
+                "-q", "-d", "v4l2:/dev/video0", "-S", "15"])
         iteration += 1
 
     def create_film(self, output_dir):
         output_file = output_dir + "/time_lapse.avi"
-        log.info('Create a video')
-        log.debug("Running command with output dir: %s output file: %s" % (output_dir, output_file))
-        subprocess.call(["mencoder", "mf://%s/*.jpg" %(output_dir), "-mf", "fps=24:type=jpg", "-ovc", "lavc", "-lavcopts", "vcodec=mpeg4:mbd=2:trell", "-oac", "copy", "-o", output_file])
+        self.log.info('Create a video')
+        self.log.debug("Running command with output dir: %s output file: %s"
+                % (output_dir, output_file))
+        subprocess.call(["mencoder", "mf://%s/*.jpg" % (output_dir), "-mf",
+                "fps=24:type=jpg", "-ovc", "lavc", "-lavcopts",
+                "vcodec=mpeg4:mbd=2:trell", "-oac", "copy", "-o", output_file])
+
 
 def main():
-    print "Making directory %s NOW" %output_dir
+    output_dir = str(time.strftime("%y%m%d%H%M%S"))
+    print "Making directory %s NOW" % output_dir
     # TODO: Be wary of exceptions here
     # TODO: update path as was.
-    output_dir = "/home/pi/time_lapse" + str(time.strftime("%y%m%d%H%M%S"))
     os.mkdir(output_dir)
 
     print 'Setup logging here'
     logging.basicConfig(level=logging.DEBUG,
-            format=%(asctime)s %(name)-18 %(levelname)-8 %(message)s,
+            format='%(asctime)s %(name)-18s %(levelname)-8s %(message)s',
             dateftm='%d-%m %H:%M',
             filename='%s/time_lapse_full.log' % (output_dir))
 
@@ -175,16 +178,15 @@ def main():
     log.info('Top of Main')
 
     # 24 hours = 1440 mins
-    time_to_run_mins = 1440
-    delay_between_shots = 100
+    time_to_run_mins = 1
+    delay_between_shots = 10
     turn_clockwise = True
     arc_to_rotate = 90
-    timenow = time.time()
 
     current_angle = arc_to_rotate / 2
     timenow = time.time()
     timetofinish = timenow + (time_to_run_mins * 60)
-    iteration = 0 
+    iteration = 0
 
     my_motor = Motor()
     photophoto = Camera()
@@ -225,4 +227,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
