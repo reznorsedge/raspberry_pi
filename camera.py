@@ -4,6 +4,7 @@ import os
 import subprocess
 import RPi.GPIO as GPIO
 import logging
+import argparse
 
 
 class Motor:
@@ -148,8 +149,17 @@ class Camera:
                 "fps=24:type=jpg", "-ovc", "lavc", "-lavcopts",
                 "vcodec=mpeg4:mbd=2:trell", "-oac", "copy", "-o", output_file])
 
-
 def main():
+    parser = argparse.ArgumentParser(description='Gather settings for time '
+                                     'lapse recordings')
+    parser.add_argument('-l', '--length', help='Length in minutes for the '
+                        'program to run for.', type=int)
+    
+    args = parser.parse_args()
+    
+    
+    
+    
     output_dir = str(time.strftime("%y%m%d%H%M%S"))
     print "Making directory %s NOW" % output_dir
     # TODO: Be wary of exceptions here
@@ -185,13 +195,15 @@ def main():
 
     current_angle = arc_to_rotate / 2
     timenow = time.time()
-    timetofinish = timenow + (time_to_run_mins * 60)
+    start_time = time.time()
+    time_to_finish = timenow + (time_to_run_mins * 60)
     iteration = 0
 
     my_motor = Motor()
     photophoto = Camera()
-
-    while timenow < timetofinish:
+    log.info('TIME: Start Time: %s' % time.strftime('%Y-%m-%d %H:%M:%S',
+             time.localtime(timenow)))
+    while timenow < time_to_finish:
         photophoto.take_photo(iteration, output_dir)
         timenow = time.time()
         if turn_clockwise:
@@ -209,7 +221,15 @@ def main():
         iteration += 1
         time.sleep(delay_between_shots)
 
+    photography_end_time = time.time()
+    log.info('TIME: End of photography time: %s' %
+             time.strftime('%Y-%m-%d %H:%M:%S',
+             time.localtime(photography_end_time)))
     photophoto.create_film(output_dir)
+    video_end_time = time.time()
+    log.info('TIME: End of create video: %s' % 
+             time.strftime('%Y-%m-%d %H:%M:%S',
+             time.localtime(video_end_time)))
 
     log.info('Reset the motor to the start position')
     half_way = (arc_to_rotate / 2)
@@ -222,6 +242,45 @@ def main():
     else:
         log.info('Do not need to do anything.')
 
+    motor_move_end_time = time.time()
+    log.info('TIME: End of rotate motor back to start: %s' % 
+             time.strftime('%Y-%m-%d %H:%M:%S',
+             time.localtime(motor_move_end_time)))
+
+    start_time_nice = time.strftime('%H:%M:%S', time.localtime(start_time))
+    photography_end_time_nice = time.strftime(
+            '%H:%M:%S', time.localtime(photography_end_time))
+    time_to_finish_nice = time.strftime(
+            '%H:%M:%S', time.localtime(time_to_finish))
+    video_end_time_nice = time.strftime(
+            '%H:%M:%S', time.localtime(video_end_time))
+    motor_move_end_time_nice = time.strftime(
+            '%H:%M:%S', time.localtime(motor_move_end_time))
+
+    log.info('+-------------------------------------+')
+    log.info(
+             '| Start time    | %s |          |' % (start_time_nice))
+    log.info(
+             '| Photos end    | %s | %s |' % (photography_end_time_nice,
+             time.strftime('%H:%M:%S', time.localtime(
+             (photography_end_time - start_time)))))
+    log.info(
+             '| Requested end | %s | %s |' % (time_to_finish_nice,
+             time.strftime('%H:%M:%S', time.localtime(
+             photography_end_time - time_to_finish))))
+    log.info(
+             '| Video created | %s | %s |' % (video_end_time_nice,
+             time.strftime('%H:%M:%S', time.localtime(
+             video_end_time - time_to_finish))))
+    log.info(
+             '| Motor moved   | %s | %s |' % (motor_move_end_time_nice,
+             time.strftime('%H:%M:%S', time.localtime(
+             motor_move_end_time - video_end_time))))
+    log.info(
+             '| Overall time  |          | %s |' % (
+             time.strftime('%H:%M:%S', time.localtime(
+             motor_move_end_time - start_time))))
+    log.info('+-------------------------------------+')
     log.info('And we are DONE!')
 
 
