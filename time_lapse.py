@@ -71,7 +71,8 @@ class Camera:
             image_file = Image.open(image_file_name)
             image_file = image_file.convert('1')
             hist = image_file.histogram()
-            if (100 * (float(hist[0]) / float(sum(hist)))) > float(percent_black):
+            if (100 * (
+                    float(hist[0]) / float(sum(hist)))) > float(percent_black):
                 too_dark_images_list.append(target_file)
             else:
                 ok_images_list.append(target_file)
@@ -80,17 +81,18 @@ class Camera:
         ok_images_list.sort()
         for target_image in too_dark_images_list:
             too_dark_file.write('%s\n' % target_image)
-        for target_image in ok_images_list:    
+        for target_image in ok_images_list:
             ok_files_file.write('%s\n' % target_image)
 
         self.log.debug('Close the files')
         too_dark_file.close()
         ok_files_file.close()
 
-        self.log.info('toodark: %s\n\nok: %s\n\n' % (too_dark_images_list, ok_images_list))
+        self.log.info('toodark: %s\n\nok: %s\n\n' % (too_dark_images_list,
+                                                     ok_images_list))
         self.log.info('Total images: %s\n'
                       'Light images: %s\n'
-                      'Dark images : %s\n' % (len(list_of_files), 
+                      'Dark images : %s\n' % (len(list_of_files),
                       len(ok_images_list), len(too_dark_images_list)))
         return too_dark, ok_images
 
@@ -122,22 +124,24 @@ def main():
     log = logging.getLogger('time_lapse')
 
     log.info('Top of Main')
+    time_to_run_mins = raw_input('How long in minutes would you like the '
+                                 'program to run? (1440 mins = 24 hours)')
+    delay_between_shots = raw_input('What delay should there be between shots'
+                                    ' (in seconds)?')
 
-    # 24 hours = 1440 mins
-    time_to_run_mins = 2
-    delay_between_shots = 10
-
-    timenow = time.time()
-    timetofinish = timenow + (time_to_run_mins * 60)
+    start_time = time.time()
+    time_to_finish = start_time + (time_to_run_mins * 60)
     iteration = 0
 
     photophoto = Camera()
 
-    while timenow < timetofinish:
+    while start_time < time_to_finish:
         photophoto.take_photo(iteration, output_dir)
         timenow = time.time()
         iteration += 1
         time.sleep(delay_between_shots)
+
+    end_time = time.time()
 
     log.info('Generate lists of light and dark images')
     too_dark_2, ok_images = photophoto.analyse_files(output_dir)
@@ -153,6 +157,23 @@ def main():
     log.info('Create a film with all images')
     photophoto.create_film_from_files(output_dir, 'time_lapse_all.avi')
 
+    start_time_nice = time.strftime('%H:%M:%S', time.localtime(timenow))
+    end_time_nice = time.strftime('%H:%M:%S', time.localtime(end_time))
+    time_to_finish_nice = time.strftime(
+            '%H:%M:%S', time.localtime(time_to_finish))
+
+    log.info('+-------------------------------------+')
+    log.info(
+             '| Start time    | %s |          |' % (start_time_nice))
+    log.info(
+             '| Photos end    | %s | %s |' % (end_time_nice,
+             time.strftime('%H:%M:%S', time.localtime(
+             (end_time - start_time)))))
+    log.info(
+             '| Requested end | %s | %s |' % (time_to_finish_nice,
+             time.strftime('%H:%M:%S', time.localtime(
+             end_time - time_to_finish))))
+    log.info('+-------------------------------------+')
     log.info('And we are DONE!')
 
 
