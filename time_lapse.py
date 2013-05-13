@@ -124,10 +124,10 @@ def main():
     log = logging.getLogger('time_lapse')
 
     log.info('Top of Main')
-    time_to_run_mins = raw_input('How long in minutes would you like the '
-                                 'program to run? (1440 mins = 24 hours)')
-    delay_between_shots = raw_input('What delay should there be between shots'
-                                    ' (in seconds)?')
+    time_to_run_mins = int(raw_input('How long in minutes would you like the '
+                                 'program to run? (1440 mins = 24 hours)'))
+    delay_between_shots = int(raw_input('What delay should there be between shots'
+                                    ' (in seconds)?'))
 
     start_time = time.time()
     time_to_finish = start_time + (time_to_run_mins * 60)
