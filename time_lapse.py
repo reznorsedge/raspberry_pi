@@ -4,6 +4,7 @@ import os
 import subprocess
 import logging
 import Image
+import sys
 
 
 class Camera:
@@ -11,42 +12,52 @@ class Camera:
         self.log = logging.getLogger('time_lapse.Camera')
 
     def take_photo(self, iteration, output_dir):
-        self.log.info('Take a picture. Iteration "%s"' % (iteration))
+        time_now_nice = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        self.log.info('(%s) Take a picture. Iteration "%s"' % (time_now_nice,
+                                                               iteration))
         output_file = output_dir + "/" + str(iteration).zfill(4) + ".jpg"
         subprocess.call(["fswebcam", "--save", output_file, "-r", "1280x720",
                 "-q", "-d", "v4l2:/dev/video0", "-S", "15"])
         iteration += 1
 
-    def create_film_from_files(self, output_dir, output_name="time_lapse.avi"):
+    def create_film_from_files(self, source_dir, fps,
+                               output_name="time_lapse.avi"):
         '''
         Create a movie using a directory of images.
         '''
-        output_file = os.path.join(output_dir, output_name)
+        output_file = os.path.join(source_dir, output_name)
         self.log.info('Create a video')
         self.log.debug("Running command with output dir: %s output file: %s"
-                % (output_dir, output_file))
-        subprocess.call(["mencoder", "mf://%s/*.jpg" % (output_dir), "-mf",
-                "fps=24:type=jpg", "-ovc", "lavc", "-lavcopts",
+                % (source_dir, output_file))
+        subprocess.call(["mencoder", "mf://%s/*.jpg" % (source_dir), "-mf",
+                "fps=%s:type=jpg" %fps, "-ovc", "lavc", "-lavcopts",
                 "vcodec=mpeg4:mbd=2:trell", "-oac", "copy", "-o", output_file])
 
-    def create_film_from_list(self, input_file, output_dir,
+    def create_film_from_list(self, input_file, input_dir, output_dir, fps,
             output_name="time_lapse.avi"):
         '''
         Create a movie using a list of files inside a file.
         '''
-        output_file = os.path.join(output_dir, output_name)
-        input_path = os.path.join(output_dir, input_file)
+        origWD = os.getcwd() # remember our original working directory
+
+        os.chdir(os.path.join(os.path.abspath(sys.path[0]), input_dir))
+
+        output_file = os.path.join("..", output_dir, output_name)
+        input_path = os.path.join(input_dir, input_file)
+
         self.log.info(
                 'Create a video from list of filenames (%s)' % (input_path))
-        self.log.debug('Running command with output dir "%s" and output file'
-                        '%s' % (output_dir, output_name))
-        subprocess.call(["mencoder", "mf://@%s" % input_path, "-mf",
-                 "fps=24:type=jpg", "-ovc", "lavc", "-lavcopts",
+        self.log.info('Running command with output dir "%s" and output file'
+                        '%s' % (output_dir, output_file))
+        subprocess.call(["mencoder", "mf://@%s" % input_file, "-mf",
+                 "fps=%s:type=jpg" % fps, "-ovc", "lavc", "-lavcopts",
                  "vcodec=mpeg4:mbd=2:trell", "-oac", "copy", "-o",
                  output_file])
+        os.chdir(origWD)
 
-    def analyse_files(self, images_location, too_dark='too_dark.txt',
-                      ok_images='ok_images.txt', percent_black=96.0):
+    def analyse_files(self, images_location, output_dir,
+                      too_dark='too_dark.txt', ok_images='ok_images.txt',
+                      percent_black=96.0):
         '''
         Create two lists of files. One has the files which are deemed useful
         to the video, the other is ones to discard (i.e. too dark to be used)
@@ -54,8 +65,8 @@ class Camera:
         list_of_files = []
         too_dark_images_list = []
         ok_images_list = []
-        too_dark_filename = os.path.join(images_location, too_dark)
-        ok_files_filename = os.path.join(images_location, ok_images)
+        too_dark_filename = os.path.join(output_dir, too_dark)
+        ok_files_filename = os.path.join(output_dir, ok_images)
 
         self.log.debug('Build up a list of files to check')
         for files in os.listdir(images_location):
@@ -88,7 +99,7 @@ class Camera:
         too_dark_file.close()
         ok_files_file.close()
 
-        self.log.info('toodark: %s\n\nok: %s\n\n' % (too_dark_images_list,
+        self.log.debug('toodark: %s\n\nok: %s\n\n' % (too_dark_images_list,
                                                      ok_images_list))
         self.log.info('Total images: %s\n'
                       'Light images: %s\n'
@@ -124,43 +135,70 @@ def main():
     log = logging.getLogger('time_lapse')
 
     log.info('Top of Main')
-    time_to_run_mins = int(raw_input('How long in minutes would you like the '
-                                 'program to run? (1440 mins = 24 hours)'))
-    delay_between_shots = int(raw_input('What delay should there be between shots'
-                                    ' (in seconds)?'))
+    skip_photos = raw_input('Are we just making a video? (yes / no)').lower()
+    fps = raw_input('How many frames per second should be do?')
+    if skip_photos.startswith('y'):
+        skip_photos = True
+        input_dir = raw_input('What is the relative path for the existing '
+                               'photos (e.g. 130513210627)?')
+        delay_between_shots = 1
+        time_to_run_mins = 1
+    else:
+        skip_photos = False
+        time_to_run_mins = int(raw_input('How long in minutes would you like the '
+                               'program to run? (1440 mins = 24 hours)'))
+        delay_between_shots = int(raw_input('What delay should there be between '
+                                  'shots (in seconds)?'))
+        input_dir = output_dir
 
     start_time = time.time()
+    start_time_nice = time.strftime('%H:%M:%S', time.localtime(start_time))
+
     time_to_finish = start_time + (time_to_run_mins * 60)
+    time_to_finish_nice = time.strftime(
+            '%H:%M:%S', time.localtime(time_to_finish))
     iteration = 0
 
     photophoto = Camera()
 
-    while start_time < time_to_finish:
-        photophoto.take_photo(iteration, output_dir)
-        timenow = time.time()
-        iteration += 1
-        time.sleep(delay_between_shots)
+    log.info('Starting with the following parameters:\n'
+             'start_time: %s (%s)\n'
+             'time_to_run_mins: %s\n'
+             'delay_between_shots: %s\n'
+             'time_to_finish: %s (%s)\n'
+             'skipping photos: %s'
+             % (start_time, start_time_nice, time_to_run_mins,
+                delay_between_shots, time_to_finish, time_to_finish_nice,
+                skip_photos))
+    timenow = time.time()
+    if not skip_photos:
+        while timenow < time_to_finish:
+            print timenow
+            photophoto.take_photo(iteration, output_dir)
+            timenow = time.time()
+            iteration += 1
+            time.sleep(delay_between_shots)
 
     end_time = time.time()
 
     log.info('Generate lists of light and dark images')
-    too_dark_2, ok_images = photophoto.analyse_files(output_dir)
+    too_dark_2, ok_images = photophoto.analyse_files(input_dir, output_dir)
 
+    #photophoto.create_film_from_list('too_dark.txt', input_dir, output_dir,
+    #                                'time_lapse_dark.avi')
     log.info('Create a film with only dark images')
-    photophoto.create_film_from_list(too_dark_2, output_dir,
-                                     'time_lapse_dark.avi')
-
+    photophoto.create_film_from_list(too_dark_2, input_dir, output_dir, '24',
+                                      'time_lapse_dark.avi')
+ 
     log.info('Create a film without dark images')
-    photophoto.create_film_from_list(ok_images, output_dir,
-                                     'time_lapse_light.avi')
-
+    photophoto.create_film_from_list(ok_images, input_dir, output_dir, '24',
+                                      'time_lapse_light.avi')
+ 
     log.info('Create a film with all images')
-    photophoto.create_film_from_files(output_dir, 'time_lapse_all.avi')
+    photophoto.create_film_from_files(output_dir, '24','time_lapse_all.avi')
 
-    start_time_nice = time.strftime('%H:%M:%S', time.localtime(timenow))
     end_time_nice = time.strftime('%H:%M:%S', time.localtime(end_time))
-    time_to_finish_nice = time.strftime(
-            '%H:%M:%S', time.localtime(time_to_finish))
+    time_now_nice = time.strftime('%H:%M:%S', time.localtime(time.time()))
 
     log.info('+-------------------------------------+')
     log.info(
@@ -168,11 +206,15 @@ def main():
     log.info(
              '| Photos end    | %s | %s |' % (end_time_nice,
              time.strftime('%H:%M:%S', time.localtime(
-             (end_time - start_time)))))
+             (int(end_time) - int(start_time))))))
     log.info(
              '| Requested end | %s | %s |' % (time_to_finish_nice,
              time.strftime('%H:%M:%S', time.localtime(
-             end_time - time_to_finish))))
+             (int(time_to_finish) - int(end_time))))))
+    log.info(
+             '| Total time    | %s | %s |' % (time_now_nice,
+             time.strftime('%H:%M:%S', time.localtime(
+             (int(time.time()) - int(start_time))))))
     log.info('+-------------------------------------+')
     log.info('And we are DONE!')
 
