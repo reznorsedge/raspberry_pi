@@ -188,15 +188,14 @@ def main():
     #photophoto.create_film_from_list('too_dark.txt', input_dir, output_dir,
     #                                'time_lapse_dark.avi')
     log.info('Create a film with only dark images')
-    photophoto.create_film_from_list(too_dark_2, input_dir, output_dir, '24',
-                                      'time_lapse_dark.avi')
- 
+    photophoto.create_film_from_list(
+        too_dark_2, input_dir, output_dir, fps, 'time_lapse_dark.avi')
+
     log.info('Create a film without dark images')
-    photophoto.create_film_from_list(ok_images, input_dir, output_dir, '24',
-                                      'time_lapse_light.avi')
- 
+    photophoto.create_film_from_list(
+        ok_images, input_dir, output_dir, fps, 'time_lapse_light.avi')
     log.info('Create a film with all images')
-    photophoto.create_film_from_files(output_dir, '24','time_lapse_all.avi')
+    photophoto.create_film_from_files(output_dir, fps, 'time_lapse_all.avi')
 
     end_time_nice = time.strftime('%H:%M:%S', time.localtime(end_time))
     time_now_nice = time.strftime('%H:%M:%S', time.localtime(time.time()))
