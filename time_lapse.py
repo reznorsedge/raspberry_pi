@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import time
+import datetime
 import os
 import subprocess
 import logging
@@ -201,20 +202,22 @@ def main():
     time_now_nice = time.strftime('%H:%M:%S', time.localtime(time.time()))
 
     log.info('+-------------------------------------+')
+    log.info('| Start time    | %s |          |' % (start_time_nice))
     log.info(
-             '| Start time    | %s |          |' % (start_time_nice))
+        '| Photos end    | %s | %s |' % (
+            end_time_nice,
+            str(datetime.timedelta(
+                seconds=(int(end_time) - int(start_time))))))
     log.info(
-             '| Photos end    | %s | %s |' % (end_time_nice,
-             time.strftime('%H:%M:%S', time.localtime(
-             (int(end_time) - int(start_time))))))
+        '| Requested end | %s | %s |' % (
+            time_to_finish_nice,
+            str(datetime.timedelta(
+                seconds=(int(time_to_finish) - int(end_time))))))
     log.info(
-             '| Requested end | %s | %s |' % (time_to_finish_nice,
-             time.strftime('%H:%M:%S', time.localtime(
-             (int(time_to_finish) - int(end_time))))))
-    log.info(
-             '| Total time    | %s | %s |' % (time_now_nice,
-             time.strftime('%H:%M:%S', time.localtime(
-             (int(time.time()) - int(start_time))))))
+        '| Total time    | %s | %s |' % (
+            time_now_nice,
+            str(datetime.timedelta(
+                seconds=(int(time.time()) - int(start_time))))))
     log.info('+-------------------------------------+')
     log.info('And we are DONE!')
 
