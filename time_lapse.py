@@ -143,8 +143,9 @@ def main():
     log = logging.getLogger('time_lapse')
 
     log.info('Top of Main')
-    skip_photos = raw_input('Are we just making a video? (yes / no)').lower()
-    fps = raw_input('How many frames per second should be do?')
+    skip_photos = raw_input('Are we just making a video? (yes / no)? ').lower()
+    fps = raw_input('How many frames per second should be do? ')
+    all_videos = raw_input('Shall we create all videos? (recommend: no)? ').lower()
     if skip_photos.startswith('y'):
         skip_photos = True
         input_dir = raw_input(
@@ -177,10 +178,12 @@ def main():
              'time_to_run_mins: %s\n'
              'delay_between_shots: %s\n'
              'time_to_finish: %s (%s)\n'
-             'skipping photos: %s'
+             'skipping photos: %s\n'
+             'frames per second: %s\n'
+             'all_videos: %s\n'
              % (start_time, start_time_nice, time_to_run_mins,
                 delay_between_shots, time_to_finish, time_to_finish_nice,
-                skip_photos))
+                skip_photos, fps, all_videos))
     timenow = time.time()
     if not skip_photos:
         while timenow < time_to_finish:
@@ -194,19 +197,20 @@ def main():
 
     log.info('Generate lists of light and dark images')
     too_dark_2, ok_images = photophoto.analyse_files(input_dir, output_dir)
-
-    #photophoto.create_film_from_list('too_dark.txt', input_dir, output_dir,
-    #                                'time_lapse_dark.avi')
-    log.info('Create a film with only dark images')
-    photophoto.create_film_from_list(
-        too_dark_2, input_dir, output_dir, fps, 'time_lapse_dark.avi')
-
+ 
     log.info('Create a film without dark images')
-    photophoto.create_film_from_list(
-        ok_images, input_dir, output_dir, fps, 'time_lapse_light.avi')
+    photophoto.create_film_from_list(ok_images, input_dir, output_dir, fps,
+                                      'time_lapse_light.avi')
+ 
+    if all_videos.startswith('y'):
+        log.info('Create a film with all images')
+        photophoto.create_film_from_files(output_dir, fps,'time_lapse_all.avi')
 
-    log.info('Create a film with all images')
-    photophoto.create_film_from_files(output_dir, fps, 'time_lapse_all.avi')
+        photophoto.create_film_from_list('too_dark.txt', input_dir, output_dir,
+                                        'time_lapse_dark.avi')
+        log.info('Create a film with only dark images')
+        photophoto.create_film_from_list(too_dark_2, input_dir, output_dir, fps,
+                                          'time_lapse_dark.avi')
 
     end_time_nice = time.strftime('%H:%M:%S', time.localtime(end_time))
     time_now_nice = time.strftime('%H:%M:%S', time.localtime(time.time()))
